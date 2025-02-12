@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tennis Court Schedule</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 20px;
+            text-align: center;
+        }
+
+        .schedule-container {
+            max-width: 90%;
+            margin: auto;
+            overflow-x: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .schedule {
+            display: grid;
+            grid-template-columns: 120px repeat(10, 1fr);
+            gap: 1px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+
+        .cell {
+            border: 1px solid #ddd;
+            padding: 10px;
+            background-color: #fff;
+        }
+
+        .header {
+            background-color: #0073e6;
+            color: white;
+            font-weight: bold;
+            padding: 12px;
+        }
+
+        .booked {
+            background-color: #ffcccb;
+        }
+
+        .free {
+            background-color: #c8e6c9;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Tennis Court Schedule</h1>
+    <div class="schedule-container">
+        <div id="schedule" class="schedule"></div>
+    </div>
+
+    <script>
+        async function fetchData() {
+            try {
+                let response = await fetch("https://play.tennis.com.au/v0/BookACourtVenue/eastmalverntennisclub/GetVenueSessions?resourceID=&startDate=2025-02-05&endDate=2025-02-05&roleId=&_=1739346143894");
+                if (!response.ok) throw new Error("Network response was not ok");
+                let data = await response.json();
+                return data.Resources;
+            } catch (error) {
+                console.error("Fetching failed, using sample data", error);
+                return getSampleData();
+            }
+        }
+
+        function getSampleData() {
+            return Array.from({ length: 10 }, (_, i) => ({
+                Name: `Court ${i + 1}`,
+                Days: [{ Sessions: [{ StartTime: 480, EndTime: 540, Name: "Coaching" }] }]
+            }));
+        }
+
+        async function renderSchedule() {
+            const schedule = document.getElementById("schedule");
+            schedule.innerHTML = "";
+
+            const times = Array.from({ length: 15 }, (_, i) => 420 + i * 60);
+            const resources = await fetchData();
+
+            schedule.appendChild(createCell("Time", "header"));
+            resources.forEach(res => schedule.appendChild(createCell(res.Name, "header")));
+
+            times.forEach(time => {
+                schedule.appendChild(createCell(formatTime(time), "header"));
+                resources.forEach(resource => {
+                    const session = resource.Days[0]?.Sessions.find(s => s.StartTime === time);
+                    const cellClass = session ? "booked" : "free";
+                    schedule.appendChild(createCell(session ? session.Name : "Available", `cell ${cellClass}`));
+                });
+            });
+        }
+
+        function createCell(content, className) {
+            const div = document.createElement("div");
+            div.className = className;
+            div.textContent = content;
+            return div;
+        }
+
+        function formatTime(minutes) {
+            let hours = Math.floor(minutes / 60);
+            let mins = minutes % 60;
+            return `${hours}:${mins === 0 ? "00" : mins}`;
+        }
+
+        renderSchedule();
+    </script>
+</body>
+
+</html>
