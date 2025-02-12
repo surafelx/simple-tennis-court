@@ -113,7 +113,7 @@
     <script>
         async function fetchData() {
             try {
-                let response = await fetch("http://localhost:3000/api/schedule");
+                let response = await fetch("https://simple-tennis-court.onrender.com/api/schedule");
                 if (!response.ok) throw new Error("Network response was not ok");
                 let data = await response.json();
                 return data.Resources;
