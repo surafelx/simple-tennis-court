@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const fetch = require("node-fetch"); // Ensure you have node-fetch installed
 
 const app = express();
 app.use(cors());
