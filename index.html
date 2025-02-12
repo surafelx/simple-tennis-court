@@ -14,7 +14,7 @@
         }
 
         .schedule-container {
-            max-width: 90%;
+            max-width: 95%;
             margin: auto;
             overflow-x: auto;
             background: white;
@@ -25,31 +25,73 @@
 
         .schedule {
             display: grid;
-            grid-template-columns: 120px repeat(10, 1fr);
-            gap: 1px;
+            grid-template-columns: 100px repeat(10, minmax(100px, 1fr));
+            gap: 2px;
             border: 1px solid #ccc;
             text-align: center;
+            align-items: center;
         }
 
         .cell {
             border: 1px solid #ddd;
-            padding: 10px;
+            padding: 12px;
             background-color: #fff;
+            word-wrap: break-word;
+            font-size: 14px;
+            cursor: pointer;
         }
 
         .header {
             background-color: #0073e6;
             color: white;
             font-weight: bold;
-            padding: 12px;
+            padding: 16px;
         }
 
-        .booked {
+        .available {
+            background-color: #c8e6c9;
+        }
+
+        .booking {
             background-color: #ffcccb;
         }
 
-        .free {
-            background-color: #c8e6c9;
+        .coaching {
+            background-color: #f4c542;
+            border: 2px solid #000;
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: left;
+        }
+
+        @media (max-width: 768px) {
+            .schedule {
+                grid-template-columns: 80px repeat(5, minmax(80px, 1fr));
+            }
+
+            .cell,
+            .header {
+                font-size: 12px;
+                padding: 8px;
+            }
         }
     </style>
 </head>
@@ -60,10 +102,18 @@
         <div id="schedule" class="schedule"></div>
     </div>
 
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2>Session Details</h2>
+            <p id="modal-text"></p>
+            <button onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
     <script>
         async function fetchData() {
             try {
-                let response = await fetch("https://play.tennis.com.au/v0/BookACourtVenue/eastmalverntennisclub/GetVenueSessions?resourceID=&startDate=2025-02-05&endDate=2025-02-05&roleId=&_=1739346143894");
+                let response = await fetch("http://localhost:3000/api/schedule");
                 if (!response.ok) throw new Error("Network response was not ok");
                 let data = await response.json();
                 return data.Resources;
@@ -76,7 +126,12 @@
         function getSampleData() {
             return Array.from({ length: 10 }, (_, i) => ({
                 Name: `Court ${i + 1}`,
-                Days: [{ Sessions: [{ StartTime: 480, EndTime: 540, Name: "Coaching" }] }]
+                Days: [{
+                    Sessions: [
+                        { StartTime: 420, EndTime: 540, Name: "Coaching", Category: 2000, ID: 1 },
+                        { StartTime: 540, EndTime: 720, Name: "Coaching", Category: 2000, ID: 2 }
+                    ]
+                }]
             }));
         }
 
@@ -91,11 +146,22 @@
             resources.forEach(res => schedule.appendChild(createCell(res.Name, "header")));
 
             times.forEach(time => {
-                schedule.appendChild(createCell(formatTime(time), "header"));
+                let timeCell = createCell(formatTime(time), "header");
+                schedule.appendChild(timeCell);
                 resources.forEach(resource => {
-                    const session = resource.Days[0]?.Sessions.find(s => s.StartTime === time);
-                    const cellClass = session ? "booked" : "free";
-                    schedule.appendChild(createCell(session ? session.Name : "Available", `cell ${cellClass}`));
+                    const sessions = resource.Days[0]?.Sessions.filter(s => s.StartTime <= time && s.EndTime > time);
+                    let cell = createCell("Available", "cell available");
+                    console.log(sessions)
+                    if (sessions.length > 0) {
+                        let session = sessions[0];
+                        const timeDiff = session.EndTime - session.StartTime;
+                        cell.className = `cell ${getCategoryClass(session.Category)} ${getTimeDiffClass(timeDiff)}`;
+                        cell.textContent = session.Category == 0 ? "" : session.Category == 1000 ? "Booking" : session.Category == 2000 ? "Coaching" : session.Category ? session.Name : "";
+                        cell.dataset.details = `Session: ${session.Name}\nTime: ${formatTime(session.StartTime)} - ${formatTime(session.EndTime)}`;
+                        cell.onclick = () => openModal(cell.dataset.details);
+                    }
+
+                    schedule.appendChild(cell);
                 });
             });
         }
@@ -110,11 +176,40 @@
         function formatTime(minutes) {
             let hours = Math.floor(minutes / 60);
             let mins = minutes % 60;
-            return `${hours}:${mins === 0 ? "00" : mins}`;
+            return `${hours}:${mins < 10 ? '0' + mins : mins}`;
+        }
+
+        function getCategoryClass(category) {
+            switch (category) {
+                case 1000: return "booking";
+                case 2000: return "coaching";
+                case 3000: return "bdnta edwta";
+                default: return "available";
+            }
+        }
+
+        function getTimeDiffClass(timeDiff) {
+            if (timeDiff <= 60) {
+                return "short-duration";
+            } else if (timeDiff <= 120) {
+                return "medium-duration";
+            } else {
+                return "long-duration";
+            }
+        }
+
+        function openModal(details) {
+            document.getElementById("modal-text").textContent = details;
+            document.getElementById("modal").style.display = "flex";
+        }
+
+        function closeModal() {
+            document.getElementById("modal").style.display = "none";
         }
 
         renderSchedule();
     </script>
+
 </body>
 
 </html>
